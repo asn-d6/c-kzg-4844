@@ -27,7 +27,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "blst.h"
 
 // Allow a library built from this code to be used from C++
 #ifdef __cplusplus
@@ -39,10 +38,6 @@ extern "C" {
 #define BYTES_PER_FIELD_ELEMENT 32
 #define BYTES_PER_BLOB (FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT)
 static const char *FIAT_SHAMIR_PROTOCOL_DOMAIN = "FSBLOBVERIFY_V1_";
-
-typedef blst_p1 g1_t;         /**< Internal G1 group element type */
-typedef blst_p2 g2_t;         /**< Internal G2 group element type */
-typedef blst_fr fr_t;         /**< Internal Fr field element type */
 
 typedef struct { uint8_t bytes[32]; } Bytes32;
 typedef struct { uint8_t bytes[48]; } Bytes48;
