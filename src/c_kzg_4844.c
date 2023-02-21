@@ -773,20 +773,44 @@ static C_KZG_RET g1_lincomb(
 ) {
     C_KZG_RET ret;
     void *scratch = NULL;
+    g1_t *new_p = NULL;
+    fr_t *new_coeffs = NULL;
     blst_p1_affine *p_affine = NULL;
     blst_scalar *scalars = NULL;
     bool point_is_inf = false;
 
-    /* blst cannot handle batch affine with zero inputs so if an input point is
-     * zero we go through the slow path */
+    /* Figure out if we have any zero points */
+    size_t new_len = len;
     for (size_t i = 0; i < len; i++) {
         if (blst_p1_is_inf(&p[i])) {
             point_is_inf = true;
+            new_len--;
         }
     }
 
+    /* If we have zero points: weed them out */
+    if (point_is_inf && new_len) {
+      ret = new_g1_array(&new_p, new_len);
+      if (ret != C_KZG_OK) goto out;
+      ret = new_fr_array(&new_coeffs, new_len);
+      if (ret != C_KZG_OK) goto out;
+
+      size_t j = 0;
+      for (size_t i = 0; i < len; i++) {
+          if (!blst_p1_is_inf(&p[i])) {
+              new_p[j] = p[i];
+              new_coeffs[j] = coeffs[i];
+              j++;
+          }
+      }
+
+      p = new_p;
+      coeffs = new_coeffs;
+      len = new_len;
+    }
+
     // Tunable parameter: must be at least 2 since Blst fails for 0 or 1
-    if (point_is_inf || len < 8) {
+    if (len < 8) {
         // Direct approach
         g1_t tmp;
         *out = G1_IDENTITY;
@@ -827,6 +851,8 @@ out:
     free(scratch);
     free(p_affine);
     free(scalars);
+    free(new_p);
+    free(new_coeffs);
     return ret;
 }
 
