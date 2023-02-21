@@ -86,6 +86,15 @@ func GetRandBlob(seed int64) Blob {
 	return blob
 }
 
+func GetZeroBlob() Blob {
+	var blob Blob
+	for i := 0; i < BytesPerBlob; i += BytesPerFieldElement {
+		bytes := make([]byte, 32)
+		copy(blob[i:i+BytesPerFieldElement], bytes[:])
+	}
+	return blob
+}
+
 /*
 HumanBytes will convert an integer to a human-readable value. Adapted from:
 https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
@@ -141,54 +150,26 @@ func Benchmark(b *testing.B) {
 	blobs := [length]Blob{}
 	proofs := [length]Bytes48{}
 	commitments := [length]Bytes48{}
-	z := Bytes32{1, 2, 3}
-	y := Bytes32{4, 5, 6}
 	for i := 0; i < length; i++ {
-		blobs[i] = GetRandBlob(int64(i))
-		commitment, _ := BlobToKZGCommitment(blobs[i])
+		var blob Blob
+		if i == 0 {
+			blob = GetZeroBlob()
+		} else {
+			blob = GetRandBlob(int64(i))
+		}
+		commitment, ret := BlobToKZGCommitment(blob)
+		require.Equal(b, ret, C_KZG_OK)
+		proof, ret := ComputeBlobKZGProof(blob)
+		require.Equal(b, ret, C_KZG_OK)
+
+		blobs[i] = blob
 		commitments[i] = Bytes48(commitment)
-		trustedProof, _ := ComputeBlobKZGProof(blobs[i])
-		proofs[i] = Bytes48(trustedProof)
+		proofs[i] = Bytes48(proof)
 	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// Public functions
 	///////////////////////////////////////////////////////////////////////////
-
-	b.Run("BlobToKZGCommitment", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			_, ret := BlobToKZGCommitment(blobs[0])
-			require.Equal(b, C_KZG_OK, ret)
-		}
-	})
-
-	b.Run("ComputeKZGProof", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			_, ret := ComputeKZGProof(blobs[0], z)
-			require.Equal(b, C_KZG_OK, ret)
-		}
-	})
-
-	b.Run("VerifyKZGProof", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			_, ret := VerifyKZGProof(commitments[0], z, y, proofs[0])
-			require.Equal(b, C_KZG_OK, ret)
-		}
-	})
-
-	b.Run("ComputeBlobKZGProof", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			_, ret := ComputeBlobKZGProof(blobs[0])
-			require.Equal(b, C_KZG_OK, ret)
-		}
-	})
-
-	b.Run("VerifyBlobKZGProof", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			_, ret := VerifyBlobKZGProof(blobs[0], commitments[0], proofs[0])
-			require.Equal(b, C_KZG_OK, ret)
-		}
-	})
 
 	for i := 1; i <= len(blobs); i *= 2 {
 		b.Run(fmt.Sprintf("VerifyBlobKZGProofBatch(blobs=%v)", i), func(b *testing.B) {
