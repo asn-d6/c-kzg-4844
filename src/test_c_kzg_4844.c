@@ -287,22 +287,39 @@ static void test_fr_batch_inv__test_consistent(void) {
     }
 }
 
+/** Make sure that a single zero in the batch inverse won't poison the result */
 static void test_fr_batch_inv__test_zero(void) {
     C_KZG_RET ret;
-    fr_t a[32], batch_inverses[32];
+    /* `a_no_zeroes` is an array of random elements
+     * `a` is a copy of `a_no_zeroes` but with a zero in index 5 */
+    fr_t a[32], a_no_zeroes[32];
+    fr_t batch_inverses[32], batch_inverses_no_zeroes[32];
 
     for (size_t i = 0; i < 32; i++) {
         get_rand_fr(&a[i]);
+        a_no_zeroes[i] = a[i];
     }
 
     a[5] = FR_ZERO;
 
+    /* Invert both `a` and `a_no_zeroes` */
     ret = fr_batch_inv(batch_inverses, a, 32);
     ASSERT_EQUALS(ret, C_KZG_OK);
+    ret = fr_batch_inv(batch_inverses_no_zeroes, a_no_zeroes, 32);
+    ASSERT_EQUALS(ret, C_KZG_OK);
 
+    /* Check that the inverses are consistent */
     for (size_t i = 0; i < 32; i++) {
-        bool ok = fr_equal(&batch_inverses[i], &FR_ZERO);
-        ASSERT_EQUALS(ok, true);
+        if (i == 5) {
+            ASSERT(
+                "batch inverse zero", fr_equal(&batch_inverses[i], &FR_ZERO)
+            );
+        } else {
+            ASSERT(
+                "batch inverse normal",
+                fr_equal(&batch_inverses[i], &batch_inverses_no_zeroes[i])
+            );
+        }
     }
 }
 
