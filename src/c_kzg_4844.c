@@ -1742,21 +1742,22 @@ out_success:
  *
  * @remark Free after use with free_trusted_setup().
  *
- * @param[out] out      Pointer to the stored trusted setup data
- * @param[in]  g1_bytes Array of G1 points
- * @param[in]  n1       Number of `g1` points in g1_bytes
- * @param[in]  g2_bytes Array of G2 points
- * @param[in]  n2       Number of `g2` points in g2_bytes
+ * @param[out] out                 Pointer to the stored trusted setup data
+ * @param[in]  g1_bytes            Array of G1 points
+ * @param[in]  n1                  Number of `g1` points in g1_bytes
+ * @param[in]  g2_bytes            Array of G2 points
+ * @param[in]  n2                  Number of `g2` points in g2_bytes
+ * @param[in]  is_compressed       If true, elliptic curve points are compressed
  */
 C_KZG_RET load_trusted_setup(
     KZGSettings *out,
     const uint8_t *g1_bytes,
     size_t n1,
     const uint8_t *g2_bytes,
-    size_t n2
+    size_t n2,
+    bool is_compressed
 ) {
     uint64_t i;
-    blst_p2_affine g2_affine;
     g1_t *g1_projective = NULL;
     C_KZG_RET ret;
 
@@ -1778,21 +1779,40 @@ C_KZG_RET load_trusted_setup(
 
     /* Convert all g1 bytes to g1 points */
     for (i = 0; i < n1; i++) {
-        ret = validate_kzg_g1(
-            &g1_projective[i], (Bytes48 *)&g1_bytes[BYTES_PER_G1 * i]
-        );
-        if (ret != C_KZG_OK) goto out_error;
+        if (is_compressed) {
+            ret = validate_kzg_g1(
+                &g1_projective[i], (Bytes48 *)&g1_bytes[BYTES_PER_G1 * i]
+            );
+            if (ret != C_KZG_OK) goto out_error;
+        } else {
+            /* XXX consider packing into a validate_kzg_g1_uncompressed() */
+            blst_p1_affine g1_affine;
+            BLST_ERROR err = blst_p1_deserialize(
+                &g1_affine, &g1_bytes[BYTES_PER_G1 * i]
+            );
+            if (err != BLST_SUCCESS) {
+                ret = C_KZG_BADARGS;
+                goto out_error;
+            }
+            blst_p1_from_affine(&g1_projective[i], &g1_affine);
+            /* XXX missing inf/subgroup checks that validate_kzg_g1() does */
+        }
     }
 
     /* Convert all g2 bytes to g2 points */
     for (i = 0; i < n2; i++) {
-        BLST_ERROR err = blst_p2_uncompress(
-            &g2_affine, &g2_bytes[BYTES_PER_G2 * i]
-        );
+        BLST_ERROR err;
+        blst_p2_affine g2_affine;
+        if (is_compressed) {
+            err = blst_p2_uncompress(&g2_affine, &g2_bytes[BYTES_PER_G2 * i]);
+        } else {
+            err = blst_p2_deserialize(&g2_affine, &g2_bytes[BYTES_PER_G2 * i]);
+        }
         if (err != BLST_SUCCESS) {
             ret = C_KZG_BADARGS;
             goto out_error;
         }
+
         blst_p2_from_affine(&out->g2_values[i], &g2_affine);
     }
 
@@ -1834,8 +1854,11 @@ out_success:
  *
  * @param[out] out Pointer to the loaded trusted setup data
  * @param[in]  in  File handle for input
+ * @param[in]  is_compressed       If true, elliptic curve points are compressed
  */
-C_KZG_RET load_trusted_setup_file(KZGSettings *out, FILE *in) {
+C_KZG_RET load_trusted_setup_file(
+    KZGSettings *out, FILE *in, bool is_compressed
+) {
     int num_matches;
     uint64_t i;
     uint8_t g1_bytes[TRUSTED_SETUP_NUM_G1_POINTS * BYTES_PER_G1];
@@ -1868,7 +1891,8 @@ C_KZG_RET load_trusted_setup_file(KZGSettings *out, FILE *in) {
         g1_bytes,
         TRUSTED_SETUP_NUM_G1_POINTS,
         g2_bytes,
-        TRUSTED_SETUP_NUM_G2_POINTS
+        TRUSTED_SETUP_NUM_G2_POINTS,
+        is_compressed
     );
 }
 
