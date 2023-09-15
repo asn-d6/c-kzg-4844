@@ -1107,6 +1107,7 @@ static C_KZG_RET compute_kzg_proof_impl(
 out:
     c_kzg_free(inverses_in);
     c_kzg_free(inverses);
+    c_kzg_free(q);
     return ret;
 }
 
