@@ -842,9 +842,7 @@ out:
 static C_KZG_RET poly_to_kzg_commitment(
     g1_t *out, const fr_t *poly, const KZGSettings *s
 ) {
-    return g1_lincomb_fast(
-        out, s->g1_values, poly, FIELD_ELEMENTS_PER_BLOB
-    );
+    return g1_lincomb_fast(out, s->g1_values, poly, FIELD_ELEMENTS_PER_BLOB);
 }
 
 /**
@@ -1091,9 +1089,7 @@ static C_KZG_RET compute_kzg_proof_impl(
     }
 
     g1_t out_g1;
-    ret = g1_lincomb_fast(
-        &out_g1, s->g1_values, q, FIELD_ELEMENTS_PER_BLOB
-    );
+    ret = g1_lincomb_fast(&out_g1, s->g1_values, q, FIELD_ELEMENTS_PER_BLOB);
     if (ret != C_KZG_OK) goto out;
 
     bytes_from_g1(proof_out, &out_g1);
