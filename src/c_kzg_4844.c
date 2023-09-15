@@ -66,12 +66,6 @@ static const char *RANDOM_CHALLENGE_KZG_BATCH_DOMAIN = "RCKZGBATCH___V1_";
 /** The number of bytes in a g2 point. */
 #define BYTES_PER_G2 96
 
-/** The number of g1 points in a trusted setup. */
-#define TRUSTED_SETUP_NUM_G1_POINTS FIELD_ELEMENTS_PER_BLOB
-
-/** The number of g2 points in a trusted setup. */
-#define TRUSTED_SETUP_NUM_G2_POINTS 65
-
 // clang-format off
 
 /** Deserialized form of the G1 identity/infinity point. */
