@@ -621,9 +621,7 @@ static C_KZG_RET compute_challenge(
     uint8_t *bytes = NULL;
 
     /* Input size to the Fiat-Shamir challenge computation. */
-    size_t challenge_input_size = DOMAIN_STR_LENGTH + 16 +
-                                  (BYTES_PER_FIELD_ELEMENT *
-                                   s->field_elements_per_blob) +
+    size_t challenge_input_size = DOMAIN_STR_LENGTH + 16 + s->bytes_per_blob +
                                   BYTES_PER_COMMITMENT;
     ret = c_kzg_malloc((void **)&bytes, challenge_input_size);
     if (ret != C_KZG_OK) goto out;
