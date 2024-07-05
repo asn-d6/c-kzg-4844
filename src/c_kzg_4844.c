@@ -3767,6 +3767,7 @@ static void deduplicate_commitments(
 
     /* Update the count */
     *count = new_count;
+    printf("new_count: %d\n", (int) new_count);
 }
 
 /**

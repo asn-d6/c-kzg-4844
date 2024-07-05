@@ -446,6 +446,37 @@ static void test_pairings_verify__bad_pairing(void) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Tests for deduplicate_commitments
+///////////////////////////////////////////////////////////////////////////////
+
+static void test_deduplicate_commitments__good(void) {
+    //    C_KZG_RET ret;
+    KZGCommitment commitments[4];
+    uint64_t indices[4];
+    size_t count = 4;
+
+    /* {commitment1, commitment2, commitment1, commitment3}; */
+    memset(&commitments[0], 0, sizeof(KZGCommitment));
+    memset(&commitments[1], 1, sizeof(KZGCommitment));
+    memset(&commitments[2], 0, sizeof(KZGCommitment));
+    memset(&commitments[3], 3, sizeof(KZGCommitment));
+
+    indices[0] = 0;
+    indices[1] = 1;
+    indices[2] = 0;
+    indices[3] = 2;
+
+    deduplicate_commitments(commitments, indices, &count);
+
+    ASSERT_EQUALS(count, 3);
+    ASSERT_EQUALS(indices[0], 0);
+    ASSERT_EQUALS(indices[1], 1);
+    ASSERT_EQUALS(indices[2], 2);
+
+    printf("[!] DONE!\n");
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Tests for blob_to_kzg_commitment
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -2136,6 +2167,7 @@ static void teardown(void) {
 
 int main(void) {
     setup();
+    RUN(test_deduplicate_commitments__good);
     RUN(test_c_kzg_malloc__succeeds_size_greater_than_zero);
     RUN(test_c_kzg_malloc__fails_size_equal_to_zero);
     RUN(test_c_kzg_malloc__fails_too_big);
