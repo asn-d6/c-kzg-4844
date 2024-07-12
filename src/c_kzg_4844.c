@@ -3403,7 +3403,7 @@ static void deduplicate_commitments(
  * @remark Will return an error if both cells & proofs are NULL.
  */
 C_KZG_RET compute_cells_and_kzg_proofs(
-    Cell *cells, KZGProof *proofs, const Blob *blob, const KZGSettings *s
+    Cell *cells_out, KZGProof *proofs_out, const Blob *blob, const KZGSettings *s
 ) {
     C_KZG_RET ret;
     fr_t *poly_monomial = NULL;
@@ -3412,7 +3412,7 @@ C_KZG_RET compute_cells_and_kzg_proofs(
     g1_t *proofs_g1 = NULL;
 
     /* If both of these are null, something is wrong */
-    if (cells == NULL && proofs == NULL) {
+    if (cells_out == NULL && proofs_out == NULL) {
         return C_KZG_BADARGS;
     }
 
@@ -3441,7 +3441,7 @@ C_KZG_RET compute_cells_and_kzg_proofs(
     );
     if (ret != C_KZG_OK) goto out;
 
-    if (cells != NULL) {
+    if (cells_out != NULL) {
         /* Allocate space for our data points */
         ret = new_fr_array(&data_fr, FIELD_ELEMENTS_PER_EXT_BLOB);
         if (ret != C_KZG_OK) goto out;
@@ -3462,13 +3462,13 @@ C_KZG_RET compute_cells_and_kzg_proofs(
                 size_t index = i * FIELD_ELEMENTS_PER_CELL + j;
                 size_t offset = j * BYTES_PER_FIELD_ELEMENT;
                 bytes_from_bls_field(
-                    (Bytes32 *)&cells[i].bytes[offset], &data_fr[index]
+                    (Bytes32 *)&cells_out[i].bytes[offset], &data_fr[index]
                 );
             }
         }
     }
 
-    if (proofs != NULL) {
+    if (proofs_out != NULL) {
         /* Allocate space for our proofs in g1-form */
         ret = new_g1_array(&proofs_g1, CELLS_PER_EXT_BLOB);
         if (ret != C_KZG_OK) goto out;
@@ -3487,7 +3487,7 @@ C_KZG_RET compute_cells_and_kzg_proofs(
 
         /* Convert all of the proofs to byte-form */
         for (size_t i = 0; i < CELLS_PER_EXT_BLOB; i++) {
-            bytes_from_g1(&proofs[i], &proofs_g1[i]);
+            bytes_from_g1(&proofs_out[i], &proofs_g1[i]);
         }
     }
 
@@ -3513,8 +3513,8 @@ out:
  * @remark If recovered_proofs is NULL, they will not be recomputed.
  */
 C_KZG_RET recover_cells_and_kzg_proofs(
-    Cell *recovered_cells,
-    KZGProof *recovered_proofs,
+    Cell *recovered_cells_out,
+    KZGProof *recovered_proofs_out,
     const uint64_t *cell_indices,
     const Cell *cells,
     size_t num_cells,
@@ -3583,7 +3583,7 @@ C_KZG_RET recover_cells_and_kzg_proofs(
 
     if (num_cells == CELLS_PER_EXT_BLOB) {
         /* Nothing to recover, copy the cells */
-        memcpy(recovered_cells, cells, CELLS_PER_EXT_BLOB * sizeof(Cell));
+        memcpy(recovered_cells_out, cells, CELLS_PER_EXT_BLOB * sizeof(Cell));
     } else {
         /* Perform cell recovery */
         ret = recover_cells_impl(recovered_cells_fr, recovered_cells_fr, s);
@@ -3595,14 +3595,14 @@ C_KZG_RET recover_cells_and_kzg_proofs(
                 size_t index = i * FIELD_ELEMENTS_PER_CELL + j;
                 size_t offset = j * BYTES_PER_FIELD_ELEMENT;
                 bytes_from_bls_field(
-                    (Bytes32 *)&recovered_cells[i].bytes[offset],
+                    (Bytes32 *)&recovered_cells_out[i].bytes[offset],
                     &recovered_cells_fr[index]
                 );
             }
         }
     }
 
-    if (recovered_proofs != NULL) {
+    if (recovered_proofs_out != NULL) {
         /*
          * Instead of converting the cells to a blob and back, we can just treat
          * the cells as a polynomial. We are done with the fr-form recovered
@@ -3630,7 +3630,7 @@ C_KZG_RET recover_cells_and_kzg_proofs(
 
         /* Convert all of the proofs to byte-form */
         for (size_t i = 0; i < CELLS_PER_EXT_BLOB; i++) {
-            bytes_from_g1(&recovered_proofs[i], &recovered_proofs_g1[i]);
+            bytes_from_g1(&recovered_proofs_out[i], &recovered_proofs_g1[i]);
         }
     }
 
