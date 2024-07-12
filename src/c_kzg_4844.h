@@ -139,6 +139,8 @@ typedef struct {
     fr_t *expanded_roots_of_unity;
     /** The bit-reversal permuted roots of unity. */
     fr_t *reverse_roots_of_unity;
+    /** Small domain roots of unity (of size CELLS_PER_EXT_BLOB=128) */
+    fr_t *small_roots_of_unity;
     /** G1 group elements from the trusted setup,
      * in monomial form. */
     g1_t *g1_values_monomial;

@@ -1812,11 +1812,27 @@ static C_KZG_RET compute_roots_of_unity(KZGSettings *s) {
     );
     if (ret != C_KZG_OK) goto out;
 
+
     /* Populate reverse roots of unity */
     for (uint64_t i = 0; i <= s->max_width; i++) {
         s->reverse_roots_of_unity[i] =
             s->expanded_roots_of_unity[s->max_width - i];
     }
+
+    /* Generate small domain roots of unity (in the spec: `roots_of_unity_reduced`) */
+    blst_fr_from_uint64(&root_of_unity, SCALE2_ROOT_OF_UNITY[7]); // log cells_per_ext_blob
+    { // XXX Sanity check
+        fr_t powers_of_root_of_unity[CELLS_PER_EXT_BLOB+1];
+        compute_powers(powers_of_root_of_unity, &root_of_unity, CELLS_PER_EXT_BLOB+1);
+        for (int i = 1; i < CELLS_PER_EXT_BLOB; i++) {
+            assert(!fr_is_one(&powers_of_root_of_unity[i]));
+        }
+        assert(fr_is_one(&powers_of_root_of_unity[CELLS_PER_EXT_BLOB]));
+    }
+    ret = expand_root_of_unity(
+        s->small_roots_of_unity, &root_of_unity, CELLS_PER_EXT_BLOB
+    );
+    if (ret != C_KZG_OK) goto out;
 
 out:
     return ret;
@@ -1835,6 +1851,7 @@ void free_trusted_setup(KZGSettings *s) {
     c_kzg_free(s->roots_of_unity);
     c_kzg_free(s->expanded_roots_of_unity);
     c_kzg_free(s->reverse_roots_of_unity);
+    c_kzg_free(s->small_roots_of_unity);
     c_kzg_free(s->g1_values_monomial);
     c_kzg_free(s->g1_values_lagrange_brp);
     c_kzg_free(s->g2_values_monomial);
@@ -2058,6 +2075,7 @@ C_KZG_RET load_trusted_setup(
     out->roots_of_unity = NULL;
     out->expanded_roots_of_unity = NULL;
     out->reverse_roots_of_unity = NULL;
+    out->small_roots_of_unity = NULL;
     out->g1_values_monomial = NULL;
     out->g1_values_lagrange_brp = NULL;
     out->g2_values_monomial = NULL;
@@ -2104,6 +2122,8 @@ C_KZG_RET load_trusted_setup(
     ret = new_fr_array(&out->expanded_roots_of_unity, out->max_width + 1);
     if (ret != C_KZG_OK) goto out_error;
     ret = new_fr_array(&out->reverse_roots_of_unity, out->max_width + 1);
+    if (ret != C_KZG_OK) goto out_error;
+    ret = new_fr_array(&out->small_roots_of_unity, CELLS_PER_EXT_BLOB + 1);
     if (ret != C_KZG_OK) goto out_error;
     ret = new_g1_array(&out->g1_values_monomial, NUM_G1_POINTS);
     if (ret != C_KZG_OK) goto out_error;
