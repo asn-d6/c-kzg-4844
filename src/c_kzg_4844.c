@@ -2619,9 +2619,9 @@ out:
  * @remark This does not work if all indices are missing.
  * @remark Unused coefficients are set to zero.
  */
-static C_KZG_RET zero_polynomial_via_multiplication(
-    fr_t *zero_poly,
-    size_t *zero_poly_len,
+static C_KZG_RET construct_vanishing_polynomial(
+    fr_t *zero_poly_coeff_out,
+    size_t *zero_poly_len_out,
     const uint64_t *missing_indices,
     size_t len_missing,
     const KZGSettings *s
@@ -2634,9 +2634,9 @@ static C_KZG_RET zero_polynomial_via_multiplication(
     /* If nothing is missing, return all zeros */
     if (len_missing == 0) {
         for (size_t i = 0; i < s->max_width; i++) {
-            zero_poly[i] = FR_ZERO;
+            zero_poly_coeff_out[i] = FR_ZERO;
         }
-        *zero_poly_len = 0;
+        *zero_poly_len_out = 0;
         ret = C_KZG_OK;
         goto out;
     }
@@ -2653,7 +2653,7 @@ static C_KZG_RET zero_polynomial_via_multiplication(
 
     if (len_missing <= missing_per_partial) {
         ret = do_zero_poly_mul_partial(
-            zero_poly, zero_poly_len, missing_indices, len_missing, s
+            zero_poly_coeff_out, zero_poly_len_out, missing_indices, len_missing, s
         );
         if (ret != C_KZG_OK) goto out;
     } else {
@@ -2726,11 +2726,11 @@ static C_KZG_RET zero_polynomial_via_multiplication(
 
         /* Pad the output with zeros */
         ret = pad_p(
-            zero_poly, s->max_width, partials[0].coeffs, partials[0].length
+            zero_poly_coeff_out, s->max_width, partials[0].coeffs, partials[0].length
         );
         if (ret != C_KZG_OK) goto out;
 
-        *zero_poly_len = partials[0].length;
+        *zero_poly_len_out = partials[0].length;
     }
 
 out:
@@ -2867,7 +2867,7 @@ static C_KZG_RET recover_cells_impl(
     fr_t *reconstructed_data_out, fr_t *cells, const KZGSettings *s
 ) {
     C_KZG_RET ret;
-    uint64_t *missing = NULL;
+    uint64_t *missing_cell_indices = NULL;
     fr_t *zero_poly_eval = NULL;
     fr_t *zero_poly_coeff = NULL;
     size_t zero_poly_len = 0;
@@ -2879,7 +2879,7 @@ static C_KZG_RET recover_cells_impl(
     fr_t *cells_brp = NULL;
 
     /* Allocate space for arrays */
-    ret = c_kzg_calloc((void **)&missing, s->max_width, sizeof(uint64_t));
+    ret = c_kzg_calloc((void **)&missing_cell_indices, s->max_width, sizeof(uint64_t));
     if (ret != C_KZG_OK) goto out;
     ret = new_fr_array(&zero_poly_eval, s->max_width);
     if (ret != C_KZG_OK) goto out;
@@ -2907,16 +2907,16 @@ static C_KZG_RET recover_cells_impl(
     size_t len_missing = 0;
     for (size_t i = 0; i < s->max_width; i++) {
         if (fr_is_null(&cells_brp[i])) {
-            missing[len_missing++] = i;
+            missing_cell_indices[len_missing++] = i;
         }
     }
 
-    /* Check that we have enough cells */
+    /* Check that we have enough cells (should be enforced by caller) */
     assert(len_missing <= s->max_width / 2);
 
     /* Compute Z(x) in monomial form */
-    ret = zero_polynomial_via_multiplication(
-        zero_poly_coeff, &zero_poly_len, missing, len_missing, s
+    ret = construct_vanishing_polynomial(
+        zero_poly_coeff, &zero_poly_len, missing_cell_indices, len_missing, s
     );
     if (ret != C_KZG_OK) goto out;
 
@@ -3002,7 +3002,7 @@ static C_KZG_RET recover_cells_impl(
     if (ret != C_KZG_OK) goto out;
 
 out:
-    c_kzg_free(missing);
+    c_kzg_free(missing_cell_indices);
     c_kzg_free(zero_poly_eval);
     c_kzg_free(extended_evaluation_times_zero);
     c_kzg_free(extended_evaluation_times_zero_coeffs);
