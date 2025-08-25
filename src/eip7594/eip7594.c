@@ -189,7 +189,14 @@ C_KZG_RET recover_cells_and_kzg_proofs(
 
     /* Check that cell indices are valid */
     for (size_t i = 0; i < num_cells; i++) {
+        /* Range check */
         if (cell_indices[i] >= CELLS_PER_EXT_BLOB) {
+            ret = C_KZG_BADARGS;
+            goto out;
+        }
+
+        /* Check that the cells are provided in strictly increasing order */
+        if (i > 0 && cell_indices[i] <= cell_indices[i - 1]) {
             ret = C_KZG_BADARGS;
             goto out;
         }
